@@ -14,10 +14,11 @@ private:
     int numColunas = 0;
 
     void lerCSV();
+    void lerMapaROS();
     void construirArestas();
 
 public:
-    Grafo(string nomeArquivo);
+    Grafo(int argc, char** argv);
     vector<vector<int>> listaAdj; 
     map<pair<int,int>, int> coordToId; 
     void imprimirGrafo();

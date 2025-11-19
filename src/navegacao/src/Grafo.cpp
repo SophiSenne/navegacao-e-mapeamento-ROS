@@ -1,10 +1,13 @@
 #include "Grafo.h"
 
+#include "rclcpp/rclcpp.hpp"
+#include "cg_interfaces/srv/get_map.hpp"
+
 #include <bits/stdc++.h>
 using namespace std;
 
-Grafo::Grafo(string nomeArquivo) : nomeArquivo(nomeArquivo) {
-    lerCSV();
+Grafo::Grafo(int argc, char** argv) {
+    lerMapaROS();
     construirArestas();
 }
 
@@ -46,6 +49,63 @@ void Grafo::lerCSV() {
     cout << "Leitura concluída: " << numLinhas << " linhas, "
             << numColunas << " colunas." << endl;
     cout << "Encontrados " << idContador << " vértices." << endl;
+}
+
+void Grafo::lerMapaROS() {
+    auto node = rclcpp::Node::make_shared("grafo_map_reader");
+    
+    auto client = node->create_client<cg_interfaces::srv::GetMap>("/get_map");
+    
+    cout << "Aguardando serviço /get_map" << endl;
+    while (!client->wait_for_service(std::chrono::seconds(1))) {
+        if (!rclcpp::ok()) {
+            cerr << "Interrompido enquanto aguardava o serviço." << endl;
+            exit(1);
+        }
+        cout << "Serviço não disponível, aguardando" << endl;
+    }
+    
+    auto request = std::make_shared<cg_interfaces::srv::GetMap::Request>();
+    cout << "Chamando serviço /get_map..." << endl;
+    auto future = client->async_send_request(request);
+    
+    if (rclcpp::spin_until_future_complete(node, future) == 
+        rclcpp::FutureReturnCode::SUCCESS) {
+        
+        auto response = future.get();
+        if (response->occupancy_grid_shape.size() != 2) {
+            cerr << "Shape inválido do mapa!" << endl;
+            exit(1);
+        }
+        
+        numLinhas = response->occupancy_grid_shape[0];
+        numColunas = response->occupancy_grid_shape[1];
+        
+        cout << "Mapa recebido: " << numLinhas << " linhas, " 
+             << numColunas << " colunas." << endl;
+        
+        int idx = 0;
+        for (int r = 0; r < numLinhas; r++) {
+            vector<char> linhaGrid;
+            for (int c = 0; c < numColunas; c++) {
+                char valor = response->occupancy_grid_flattened[idx][0]; // pega primeiro char da string
+                linhaGrid.push_back(valor);
+                
+                if (valor != 'b') {
+                    coordToId[{r, c}] = idContador;
+                    idContador++;
+                }
+                idx++;
+            }
+            mapa.push_back(linhaGrid);
+        }
+        
+        cout << "Encontrados " << idContador << " vértices." << endl;
+        
+    } else {
+        cerr << "Falha ao chamar o serviço /get_map" << endl;
+        exit(1);
+    }
 }
 
 void Grafo::construirArestas() {
