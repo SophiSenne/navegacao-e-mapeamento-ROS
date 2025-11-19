@@ -38,20 +38,16 @@ void exibirMenu() {
 }
 
 bool iniciarMazeSimulador() {
-    std::cout << "\n[INFO] Iniciando simulador maze...\n";
+    std::cout << "\n[INFO] Iniciando simulador maze\n";
     
     maze_pid = fork();
     
     if (maze_pid == 0) {
-        // Processo filho - executa o maze
         execlp("ros2", "ros2", "run", "cg", "maze", nullptr);
-        // Se chegar aqui, houve erro
         std::cerr << "[ERRO] Falha ao executar ros2 run cg maze\n";
         exit(1);
     } else if (maze_pid > 0) {
-        // Processo pai
         std::cout << "[INFO] Simulador iniciado (PID: " << maze_pid << ")\n";
-        std::cout << "[INFO] Aguardando inicialização...\n";
         std::this_thread::sleep_for(std::chrono::seconds(3));
         return true;
     } else {
@@ -62,7 +58,7 @@ bool iniciarMazeSimulador() {
 
 void pararMazeSimulador() {
     if (maze_pid > 0) {
-        std::cout << "\n[INFO] Encerrando simulador...\n";
+        std::cout << "\n[INFO] Encerrando simulador\n";
         kill(maze_pid, SIGTERM);
         rclcpp::shutdown();
         waitpid(maze_pid, nullptr, 0);
@@ -73,19 +69,20 @@ void pararMazeSimulador() {
 
 void modoMapear(int argc, char** argv) {
     limparTela();
-    std::cout << "\n╔══════════════════════════════════════════════════════════╗\n";
-    std::cout << "║              MODO MAPEAMENTO ATIVADO                     ║\n";
-    std::cout << "╚══════════════════════════════════════════════════════════╝\n\n";
+    std::cout << std::endl;
+    std::cout << "╔══════════════════════════════════════════════════════════╗" << std::endl;
+    std::cout << "║                     MODO MAPEAMENTO                      ║" << std::endl;
+    std::cout << "╚══════════════════════════════════════════════════════════╝" << std::endl;
     
     if (!iniciarMazeSimulador()) {
         std::cout << "\n[ERRO] Não foi possível iniciar o simulador.\n";
-        std::cout << "Pressione ENTER para voltar ao menu...";
+        std::cout << "Pressione ENTER para voltar ao menu";
         std::cin.ignore();
         std::cin.get();
         return;
     }
 
-    std::cout << "[INFO] Inicializando ROS2...\n";
+    std::cout << "[INFO] Inicializando ROS2\n";
     rclcpp::init(argc, argv);
     
     auto explorador = std::make_shared<ExploradorLabirinto>();

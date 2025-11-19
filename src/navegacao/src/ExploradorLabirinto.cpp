@@ -286,6 +286,8 @@ void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::
         {"down_left", sensores->down_left},
         {"down_right", sensores->down_right}
     };
+
+    std::set<std::string> direcoesCardeais = {"up", "down", "left", "right"};
     
     int celulasLivres = 0;
     int paredes = 0;
@@ -306,15 +308,16 @@ void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::
             paredes++;
         }
         else if (valor == "t") {
+            alvoEncontrado = true;
+            bool direcaoCardinal = (direcoesCardeais.find(dir) != direcoesCardeais.end());
             tipo = ALVO;
             celulasLivres++;
             posicaoAlvo = {nx, ny};
-            if (!alvoEncontrado) {
+            if (direcaoCardinal && alvoEncontrado) {
                 std::cout << "\n\n🎯 ═══════════════════════════════════════════════════" << std::endl;
                 std::cout << "   ALVO ENCONTRADO em (" << nx << ", " << ny << ")!" << std::endl;
                 std::cout << "   ═══════════════════════════════════════════════════\n" << std::endl;
             }
-            alvoEncontrado = true;
         }
         
         mapaExplorado[{nx, ny}] = tipo;
