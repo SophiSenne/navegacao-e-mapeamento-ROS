@@ -18,9 +18,14 @@ private:
     void construirArestas();
 
 public:
+    pair<int,int> coorRobo;
+    pair<int,int> coorAlvo;
+
     Grafo(int argc, char** argv);
+
     vector<vector<int>> listaAdj; 
     map<pair<int,int>, int> coordToId; 
+    
     void imprimirGrafo();
 };
 

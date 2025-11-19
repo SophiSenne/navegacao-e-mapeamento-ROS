@@ -1,4 +1,5 @@
 #include "Grafo.h"
+#include "Algoritmo.h"
 #include "rclcpp/rclcpp.hpp"
 #include <iostream>
 #include <string>
@@ -129,13 +130,20 @@ void modoNavegacao(int argc, char** argv) {
         std::cout << "│  INFORMAÇÕES DO GRAFO:                                   │\n";
         std::cout << "└──────────────────────────────────────────────────────────┘\n\n";
         
-        grafo.imprimirGrafo();
+        // grafo.imprimirGrafo();
         
         std::cout << "\n[INFO] Grafo construído com sucesso!\n";
+        
+        std::cout << "\n[INFO] Executando busca em largura...\n";
+
+        Algoritmo algoritmo(&grafo, grafo.coorRobo, grafo.coorAlvo);
+        algoritmo.buscaEmLargura();
+        
+        std::cout << "\n[INFO] Navegação concluída!\n";
         std::cout << "\nPressione ENTER para finalizar e voltar ao menu...";
         std::cin.ignore();
         std::cin.get();
-        
+
     } catch (const std::exception& e) {
         std::cerr << "\n[ERRO] Exceção capturada: " << e.what() << "\n";
         std::cout << "Pressione ENTER para voltar ao menu...";

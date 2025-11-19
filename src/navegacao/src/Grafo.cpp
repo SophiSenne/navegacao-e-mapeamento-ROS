@@ -88,12 +88,16 @@ void Grafo::lerMapaROS() {
         for (int r = 0; r < numLinhas; r++) {
             vector<char> linhaGrid;
             for (int c = 0; c < numColunas; c++) {
-                char valor = response->occupancy_grid_flattened[idx][0]; // pega primeiro char da string
+                char valor = response->occupancy_grid_flattened[idx][0];
                 linhaGrid.push_back(valor);
                 
                 if (valor != 'b') {
                     coordToId[{r, c}] = idContador;
                     idContador++;
+                    if(valor == 'r')
+                        coorRobo = {r, c};
+                    if(valor == 't')
+                        coorAlvo = {r, c};
                 }
                 idx++;
             }
