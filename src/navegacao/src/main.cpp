@@ -1,6 +1,7 @@
 #include "Grafo.h"
 #include "Algoritmo.h"
 #include "ControladorRobo.h"
+#include "ExploradorLabirinto.h"
 #include "rclcpp/rclcpp.hpp"
 #include <iostream>
 #include <string>
@@ -82,21 +83,12 @@ void modoMapear(int argc, char** argv) {
         std::cin.get();
         return;
     }
+
+    std::cout << "[INFO] Inicializando ROS2...\n";
+    rclcpp::init(argc, argv);
     
-    std::cout << "\n[INFO] Iniciando processo de mapeamento...\n";
-    std::cout << "[INFO] Execute seus comandos de mapeamento em outro terminal\n";
-    std::cout << "[INFO] Exemplo: ros2 run slam_toolbox async_slam_toolbox\n\n";
-    
-    std::cout << "┌──────────────────────────────────────────────────────────┐\n";
-    std::cout << "│  Instruções:                                             │\n";
-    std::cout << "│  - Use teleop para controlar o robô                      │\n";
-    std::cout << "│  - Explore todo o ambiente                               │\n";
-    std::cout << "│  - Salve o mapa quando finalizar                         │\n";
-    std::cout << "└──────────────────────────────────────────────────────────┘\n";
-    
-    std::cout << "\nPressione ENTER quando terminar o mapeamento...";
-    std::cin.ignore();
-    std::cin.get();
+    auto explorador = std::make_shared<ExploradorLabirinto>();
+    explorador->executarExploracao();
     
     pararMazeSimulador();
     

@@ -15,6 +15,7 @@ add_executable(grafo_node
   src/ControladorRobo.cpp
   src/Algoritmo.cpp
   src/Grafo.cpp
+  src/ExploradorLabirinto.cpp
 )
 
 target_include_directories(grafo_node PUBLIC
