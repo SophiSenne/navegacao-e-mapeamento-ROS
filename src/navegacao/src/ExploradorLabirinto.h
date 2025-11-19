@@ -10,6 +10,7 @@
 #include <queue>
 #include <set>
 #include <memory>
+#include <stack>
 
 enum TipoCelula {
     DESCONHECIDO = -1,
@@ -45,6 +46,8 @@ private:
     void atualizarMapa(const cg_interfaces::msg::RobotSensors::SharedPtr sensores);
     std::string decidirProximoMovimento();
     bool moverRobo(const std::string& direcao);
+
+    std::string decidirProximoMovimentoComBacktracking(std::stack<PosicaoRobo>& pilhaCaminho);
     
     // === Fase 2: Cálculo da melhor rota ===
     std::vector<PosicaoRobo> calcularMelhorRota();

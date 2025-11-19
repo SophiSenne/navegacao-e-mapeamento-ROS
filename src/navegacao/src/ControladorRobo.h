@@ -7,6 +7,7 @@
 #include <map>
 #include <utility>
 #include <string>
+#include <stack>
 #include <cg_interfaces/srv/move_cmd.hpp>
 
 // Forward declaration

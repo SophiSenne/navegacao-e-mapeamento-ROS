@@ -64,6 +64,7 @@ void pararMazeSimulador() {
     if (maze_pid > 0) {
         std::cout << "\n[INFO] Encerrando simulador...\n";
         kill(maze_pid, SIGTERM);
+        rclcpp::shutdown();
         waitpid(maze_pid, nullptr, 0);
         maze_pid = -1;
         std::this_thread::sleep_for(std::chrono::seconds(1));

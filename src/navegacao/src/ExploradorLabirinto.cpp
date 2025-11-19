@@ -4,6 +4,11 @@
 #include <chrono>
 #include <thread>
 #include <climits>
+#include <stack>
+
+// Adicione este método privado no header (.h):
+// std::stack<PosicaoRobo> pilhaCaminho;  // Pilha para backtracking
+// Adicione na classe como membro privado
 
 ExploradorLabirinto::ExploradorLabirinto() 
     : Node("explorador_labirinto"),
@@ -16,37 +21,32 @@ ExploradorLabirinto::ExploradorLabirinto()
       movimentosExploracao(0),
       movimentosRotaOtimizada(0) {
     
-    // Criar subscriber para sensores
     subSensores = this->create_subscription<cg_interfaces::msg::RobotSensors>(
         "/culling_games/robot_sensors",
         10,
         std::bind(&ExploradorLabirinto::processarSensores, this, std::placeholders::_1)
     );
     
-    // Criar clientes de serviço
     clienteMovimento = this->create_client<cg_interfaces::srv::MoveCmd>("/move_command");
     clienteReset = this->create_client<cg_interfaces::srv::Reset>("/reset");
     
     std::cout << "\n╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║      EXPLORADOR DE LABIRINTO INICIADO             ║" << std::endl;
+    std::cout << "║   EXPLORADOR COM BACKTRACKING INICIADO            ║" << std::endl;
     std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
 }
 
 void ExploradorLabirinto::executarExploracao() {
     std::cout << "╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║           FASE 1: EXPLORANDO LABIRINTO            ║" << std::endl;
+    std::cout << "║     FASE 1: EXPLORANDO COM BACKTRACKING           ║" << std::endl;
     std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
     
-    // Aguardar serviços
     std::cout << "⏳ Aguardando serviços..." << std::flush;
     if (!clienteMovimento->wait_for_service(std::chrono::seconds(5))) {
         std::cout << " ❌ ERRO\n";
-        std::cout << "   Serviço /move_command não disponível!\n" << std::endl;
         return;
     }
     std::cout << " ✅ OK\n" << std::endl;
     
-    // Fase 1: Exploração
     explorarLabirinto();
     
     if (!alvoEncontrado) {
@@ -54,7 +54,6 @@ void ExploradorLabirinto::executarExploracao() {
         return;
     }
     
-    // Fase 2: Calcular melhor rota
     std::cout << "\n╔════════════════════════════════════════════════════╗" << std::endl;
     std::cout << "║       FASE 2: CALCULANDO MELHOR ROTA              ║" << std::endl;
     std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
@@ -82,7 +81,6 @@ void ExploradorLabirinto::executarExploracao() {
               << std::string(20 - std::to_string(economia).length() - std::to_string(static_cast<int>(percentual)).length(), ' ') << "│" << std::endl;
     std::cout << "└────────────────────────────────────────────────────┘\n" << std::endl;
     
-    // Fase 3: Resetar e executar rota otimizada
     std::cout << "╔════════════════════════════════════════════════════╗" << std::endl;
     std::cout << "║    FASE 3: EXECUTANDO ROTA OTIMIZADA              ║" << std::endl;
     std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
@@ -91,16 +89,14 @@ void ExploradorLabirinto::executarExploracao() {
     std::this_thread::sleep_for(std::chrono::seconds(2));
     executarRotaOtimizada(rotaOtimizada);
     
-    // Estatísticas finais
     mostrarEstatisticas();
 }
 
 void ExploradorLabirinto::explorarLabirinto() {
-    rclcpp::Rate rate(10); // 10 Hz para leituras mais rápidas
+    rclcpp::Rate rate(10);
     
     std::cout << "📡 Aguardando primeira leitura dos sensores..." << std::flush;
     
-    // Aguardar primeira leitura dos sensores
     while (rclcpp::ok() && !sensoresAtualizados) {
         rclcpp::spin_some(this->get_node_base_interface());
         rate.sleep();
@@ -109,16 +105,18 @@ void ExploradorLabirinto::explorarLabirinto() {
     
     celulasVisitadas.insert(posicaoAtual);
     
-    int iteracoes = 0;
-    const int MAX_ITERACOES = 1000; // Timeout de segurança
+    // 🔥 PILHA PARA BACKTRACKING
+    std::stack<PosicaoRobo> pilhaCaminho;
+    pilhaCaminho.push(posicaoAtual);
     
-    std::cout << "🤖 Iniciando exploração...\n" << std::endl;
+    int iteracoes = 0;
+    const int MAX_ITERACOES = 10000;
+    
+    std::cout << "🤖 Iniciando exploração com backtracking...\n" << std::endl;
     
     while (rclcpp::ok() && !alvoEncontrado && iteracoes < MAX_ITERACOES) {
-        // PASSO 1: Aguardar leitura atualizada dos sensores
         sensoresAtualizados = false;
         
-        // Aguardar sensores serem atualizados
         int tentativas = 0;
         while (!sensoresAtualizados && tentativas < 20) {
             rclcpp::spin_some(this->get_node_base_interface());
@@ -131,39 +129,57 @@ void ExploradorLabirinto::explorarLabirinto() {
             break;
         }
         
-        // PASSO 2: Atualizar mapa com sensores atuais
         if (ultimosSensores) {
             atualizarMapa(ultimosSensores);
         }
         
-        // PASSO 3: Decidir próximo movimento baseado no mapa atualizado
-        std::string proximaDirecao = decidirProximoMovimento();
+        // 🔥 DECISÃO COM BACKTRACKING
+        std::string proximaDirecao = decidirProximoMovimentoComBacktracking(pilhaCaminho);
         
         if (proximaDirecao.empty()) {
-            std::cout << "\n⚠️  Sem mais células para explorar!" << std::endl;
+            std::cout << "\n⚠️  Exploração completa - alvo não encontrado!" << std::endl;
             std::cout << "   Células visitadas: " << celulasVisitadas.size() << std::endl;
-            std::cout << "   Fronteira: " << fronteira.size() << " células" << std::endl;
             break;
         }
         
-        // PASSO 4: Executar movimento
         auto offset = getOffset(proximaDirecao);
         int proxX = posicaoAtual.x + offset.first;
         int proxY = posicaoAtual.y + offset.second;
         
-        std::cout << "🔸 Movimento " << (iteracoes + 1) << ": " << proximaDirecao 
-                  << " → (" << proxX << ", " << proxY << ")" << std::flush;
+        // Verificar se é movimento de backtrack (voltar) ou exploração (avançar)
+        bool ehBacktrack = false;
+        if (pilhaCaminho.size() > 1) {
+            std::stack<PosicaoRobo> copia = pilhaCaminho;
+            copia.pop(); // Remove topo atual
+            PosicaoRobo anterior = copia.top();
+            if (proxX == anterior.x && proxY == anterior.y) {
+                ehBacktrack = true;
+            }
+        }
+        
+        if (ehBacktrack) {
+            std::cout << "🔙 Backtrack " << (iteracoes + 1) << ": " << proximaDirecao 
+                      << " → (" << proxX << ", " << proxY << ")" << std::flush;
+        } else {
+            std::cout << "🔸 Movimento " << (iteracoes + 1) << ": " << proximaDirecao 
+                      << " → (" << proxX << ", " << proxY << ")" << std::flush;
+        }
         
         if (moverRobo(proximaDirecao)) {
             std::cout << " ✅" << std::endl;
+            
+            // 🔥 GERENCIAR PILHA
+            if (ehBacktrack) {
+                pilhaCaminho.pop(); // Remove posição anterior
+            } else {
+                pilhaCaminho.push(posicaoAtual); // Adiciona nova posição
+            }
         } else {
             std::cout << " ❌" << std::endl;
             break;
         }
         
         iteracoes++;
-        
-        // Pequena pausa entre movimentos
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
     
@@ -181,13 +197,74 @@ void ExploradorLabirinto::explorarLabirinto() {
     mostrarMapa();
 }
 
+// 🔥 NOVA FUNÇÃO: Decisão com backtracking
+std::string ExploradorLabirinto::decidirProximoMovimentoComBacktracking(std::stack<PosicaoRobo>& pilhaCaminho) {
+    // PASSO 1: Tentar células adjacentes não visitadas (exploração)
+    std::vector<std::pair<int, int>> direcoes = {
+        {0, 1},   // up
+        {1, 0},   // right
+        {0, -1},  // down
+        {-1, 0}   // left
+    };
+    
+    if (ultimosSensores) {
+        std::cout << "   [Sensores: up=" << ultimosSensores->up 
+                  << " down=" << ultimosSensores->down
+                  << " left=" << ultimosSensores->left 
+                  << " right=" << ultimosSensores->right << "]" << std::endl;
+    }
+    
+    for (const auto& dir : direcoes) {
+        int nx = posicaoAtual.x + dir.first;
+        int ny = posicaoAtual.y + dir.second;
+        PosicaoRobo proxima = {nx, ny};
+        
+        TipoCelula tipoCelula = getTipoCelula(nx, ny);
+        
+        if (celulasVisitadas.find(proxima) == celulasVisitadas.end() &&
+            (tipoCelula == LIVRE || tipoCelula == ALVO)) {
+            
+            if (mapaDir.find(dir) != mapaDir.end()) {
+                std::cout << "   → Explorando: " << mapaDir[dir] << " (célula: ";
+                if (tipoCelula == LIVRE) std::cout << "livre";
+                else if (tipoCelula == ALVO) std::cout << "alvo";
+                std::cout << ")" << std::endl;
+                return mapaDir[dir];
+            }
+        }
+    }
+    
+    // PASSO 2: Não há células novas adjacentes - FAZER BACKTRACK
+    if (pilhaCaminho.size() > 1) {
+        std::stack<PosicaoRobo> copia = pilhaCaminho;
+        copia.pop(); // Remove posição atual
+        PosicaoRobo posicaoAnterior = copia.top();
+        
+        std::cout << "   → Fazendo backtrack para (" 
+                  << posicaoAnterior.x << ", " << posicaoAnterior.y << ")" << std::endl;
+        
+        // Calcular direção para voltar
+        std::pair<int, int> diff = {
+            posicaoAnterior.x - posicaoAtual.x,
+            posicaoAnterior.y - posicaoAtual.y
+        };
+        
+        if (mapaDir.find(diff) != mapaDir.end()) {
+            return mapaDir[diff];
+        }
+    }
+    
+    // PASSO 3: Pilha vazia - exploração completa sem encontrar alvo
+    std::cout << "   ⚠️  Nenhuma célula para explorar e pilha vazia!" << std::endl;
+    return "";
+}
+
 void ExploradorLabirinto::processarSensores(const cg_interfaces::msg::RobotSensors::SharedPtr msg) {
     ultimosSensores = msg;
     sensoresAtualizados = true;
 }
 
 void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::SharedPtr sensores) {
-    // Mapear as direções dos sensores
     std::map<std::string, std::pair<int, int>> offsets = {
         {"up", {0, 1}},
         {"down", {0, -1}},
@@ -220,7 +297,6 @@ void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::
         
         TipoCelula tipo = DESCONHECIDO;
         
-        // Interpretar valores dos sensores: 'f' = free, 'b' = blocked, 't' = target
         if (valor == "f") {
             tipo = LIVRE;
             celulasLivres++;
@@ -241,10 +317,8 @@ void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::
             alvoEncontrado = true;
         }
         
-        // Sempre atualizar o mapa, mesmo se já conhecida
         mapaExplorado[{nx, ny}] = tipo;
         
-        // Adicionar células livres à fronteira
         if (tipo == LIVRE || tipo == ALVO) {
             PosicaoRobo novaPosicao = {nx, ny};
             if (celulasVisitadas.find(novaPosicao) == celulasVisitadas.end()) {
@@ -253,73 +327,17 @@ void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::
         }
     }
     
-    // Marcar posição atual como livre
     mapaExplorado[{posicaoAtual.x, posicaoAtual.y}] = LIVRE;
     
     std::cout << "   [Mapa atualizado: " << celulasLivres << " livres, " 
               << paredes << " bloqueadas]" << std::endl;
 }
 
+// Manter a função original para compatibilidade
 std::string ExploradorLabirinto::decidirProximoMovimento() {
-    // Tentar células adjacentes não visitadas primeiro (movimentos cardinais)
-    std::vector<std::pair<int, int>> direcoes = {
-        {0, 1},   // up
-        {1, 0},   // right
-        {0, -1},  // down
-        {-1, 0}   // left
-    };
-    
-    // Debug: mostrar sensores atuais
-    if (ultimosSensores) {
-        std::cout << "   [Sensores: up=" << ultimosSensores->up 
-                  << " down=" << ultimosSensores->down
-                  << " left=" << ultimosSensores->left 
-                  << " right=" << ultimosSensores->right << "]" << std::endl;
-    }
-    
-    for (const auto& dir : direcoes) {
-        int nx = posicaoAtual.x + dir.first;
-        int ny = posicaoAtual.y + dir.second;
-        PosicaoRobo proxima = {nx, ny};
-        
-        TipoCelula tipoCelula = getTipoCelula(nx, ny);
-        
-        // Somente mover para células LIVRES ou ALVO que não foram visitadas
-        if (celulasVisitadas.find(proxima) == celulasVisitadas.end() &&
-            (tipoCelula == LIVRE || tipoCelula == ALVO)) {
-            
-            if (mapaDir.find(dir) != mapaDir.end()) {
-                std::cout << "   → Escolhida: " << mapaDir[dir] << " (célula: ";
-                if (tipoCelula == LIVRE) std::cout << "livre";
-                else if (tipoCelula == ALVO) std::cout << "alvo";
-                std::cout << ")" << std::endl;
-                return mapaDir[dir];
-            }
-        }
-    }
-    
-    // Se não há células cardinais, procurar na fronteira
-    while (!fronteira.empty()) {
-        PosicaoRobo proxima = fronteira.front();
-        fronteira.pop();
-        
-        TipoCelula tipoCelula = getTipoCelula(proxima.x, proxima.y);
-        
-        if (celulasVisitadas.find(proxima) == celulasVisitadas.end() &&
-            (tipoCelula == LIVRE || tipoCelula == ALVO)) {
-            
-            // Calcular caminho até esta célula
-            auto caminho = buscaEmLargura(posicaoAtual, proxima);
-            if (caminho.size() > 1) {
-                std::string direcao = calcularDirecao(caminho[0], caminho[1]);
-                std::cout << "   → Escolhida (fronteira): " << direcao << " → (" << proxima.x << "," << proxima.y << ")" << std::endl;
-                return direcao;
-            }
-        }
-    }
-    
-    std::cout << "   ⚠️  Nenhuma célula livre disponível!" << std::endl;
-    return "";
+    std::stack<PosicaoRobo> pilhaTemp;
+    pilhaTemp.push(posicaoAtual);
+    return decidirProximoMovimentoComBacktracking(pilhaTemp);
 }
 
 bool ExploradorLabirinto::moverRobo(const std::string& direcao) {
@@ -330,7 +348,6 @@ bool ExploradorLabirinto::moverRobo(const std::string& direcao) {
     
     auto futuro = clienteMovimento->async_send_request(request);
     
-    // Aguardar resposta
     if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), futuro, std::chrono::seconds(5)) 
         == rclcpp::FutureReturnCode::SUCCESS) {
         
@@ -338,7 +355,6 @@ bool ExploradorLabirinto::moverRobo(const std::string& direcao) {
         movimentoEmAndamento = false;
         
         if (resposta->success) {
-            // Atualizar posição
             for (const auto& [offset, dir] : mapaDir) {
                 if (dir == direcao) {
                     posicaoAtual.x += offset.first;
@@ -384,7 +400,6 @@ std::vector<PosicaoRobo> ExploradorLabirinto::buscaEmLargura(PosicaoRobo inicio,
         fila.pop();
         
         if (atual == alvo) {
-            // Reconstruir caminho
             std::vector<PosicaoRobo> caminho;
             PosicaoRobo pos = alvo;
             
@@ -398,7 +413,6 @@ std::vector<PosicaoRobo> ExploradorLabirinto::buscaEmLargura(PosicaoRobo inicio,
             return caminho;
         }
         
-        // Explorar vizinhos (apenas movimentos cardinais para rota ótima)
         std::vector<std::pair<int, int>> direcoes = {
             {0, 1}, {1, 0}, {0, -1}, {-1, 0}
         };
@@ -418,7 +432,7 @@ std::vector<PosicaoRobo> ExploradorLabirinto::buscaEmLargura(PosicaoRobo inicio,
         }
     }
     
-    return {}; // Caminho não encontrado
+    return {};
 }
 
 void ExploradorLabirinto::resetarJogo() {
@@ -437,8 +451,6 @@ void ExploradorLabirinto::resetarJogo() {
     if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), futuro, std::chrono::seconds(5))
         == rclcpp::FutureReturnCode::SUCCESS) {
         std::cout << " ✅\n" << std::endl;
-        
-        // Resetar posição
         posicaoAtual = posicaoInicial;
         totalMovimentos = 0;
     } else {

@@ -110,7 +110,7 @@ void Algoritmo::executarBuscaEMovimento(std::shared_ptr<ControladorRobo> control
         
         // Manter o nó ativo enquanto o robô se move
         std::cout << "[Algoritmo] Aguardando conclusão do movimento..." << std::endl;
-        rclcpp::Rate rate(10);  // 10 Hz
+        rclcpp::Rate rate(20);  // 10 Hz
         int iteracoes = 0;
         
         while (rclcpp::ok() && !controlador->chegouAoAlvo()) {
