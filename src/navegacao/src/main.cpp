@@ -1,5 +1,6 @@
 #include "Grafo.h"
 #include "Algoritmo.h"
+#include "ControladorRobo.h"
 #include "rclcpp/rclcpp.hpp"
 #include <iostream>
 #include <string>
@@ -10,7 +11,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-// Variável global para controlar o processo do maze
 pid_t maze_pid = -1;
 
 void limparTela() {
@@ -137,7 +137,9 @@ void modoNavegacao(int argc, char** argv) {
         std::cout << "\n[INFO] Executando busca em largura...\n";
 
         Algoritmo algoritmo(&grafo, grafo.coorRobo, grafo.coorAlvo);
+        auto controlador = std::make_shared<ControladorRobo>();
         algoritmo.buscaEmLargura();
+        algoritmo.executarBuscaEMovimento(controlador);
         
         std::cout << "\n[INFO] Navegação concluída!\n";
         std::cout << "\nPressione ENTER para finalizar e voltar ao menu...";

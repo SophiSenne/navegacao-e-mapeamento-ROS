@@ -2,18 +2,20 @@
 #define ALGORITMO_H
 
 #include "Grafo.h"
+#include "ControladorRobo.h"
+#include <memory>
 
 class Algoritmo {
 private:
-    pair<int, int> noInicial;
-    pair<int, int> alvo;
     Grafo* grafo;
-    queue<int> fila;
+    std::pair<int, int> inicio;
+    std::pair<int, int> alvo;
 
 public:
-    Algoritmo(Grafo* grafo, pair<int, int> coorRobo, pair<int, int> coorAlvo);
+    Algoritmo(Grafo* g, std::pair<int, int> i, std::pair<int, int> a);
+    
     void buscaEmLargura();
-
+    void executarBuscaEMovimento(std::shared_ptr<ControladorRobo> controlador);
 };
 
 #endif

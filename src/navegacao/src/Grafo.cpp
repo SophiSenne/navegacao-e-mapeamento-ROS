@@ -1,10 +1,10 @@
 #include "Grafo.h"
-
 #include "rclcpp/rclcpp.hpp"
 #include "cg_interfaces/srv/get_map.hpp"
-
-#include <bits/stdc++.h>
-using namespace std;
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <chrono>
 
 Grafo::Grafo(int argc, char** argv) {
     lerMapaROS();
@@ -12,19 +12,19 @@ Grafo::Grafo(int argc, char** argv) {
 }
 
 void Grafo::lerCSV() {
-    ifstream arquivo(nomeArquivo);
+    std::ifstream arquivo(nomeArquivo);
     if (!arquivo.is_open()) {
-        cerr << "Erro ao abrir arquivo " << nomeArquivo << endl;
+        std::cerr << "Erro ao abrir arquivo " << nomeArquivo << std::endl;
         exit(1);
     }
 
-    string linha;
+    std::string linha;
     int linhaAtual = 0;
 
     while (getline(arquivo, linha)) {
-        vector<char> linhaGrid;
-        stringstream ss(linha);
-        string celula;
+        std::vector<char> linhaGrid;
+        std::stringstream ss(linha);
+        std::string celula;
         int colunaAtual = 0;
 
         while (getline(ss, celula, ',')) {
@@ -33,6 +33,7 @@ void Grafo::lerCSV() {
 
             if (valor != 'b') {
                 coordToId[{linhaAtual, colunaAtual}] = idContador;
+                idToCoord[idContador] = {linhaAtual, colunaAtual};  // Adiciona mapa reverso
                 idContador++;
             }
             colunaAtual++;
@@ -46,9 +47,9 @@ void Grafo::lerCSV() {
     numLinhas = linhaAtual;
     arquivo.close();
 
-    cout << "Leitura concluída: " << numLinhas << " linhas, "
-            << numColunas << " colunas." << endl;
-    cout << "Encontrados " << idContador << " vértices." << endl;
+    std::cout << "Leitura concluída: " << numLinhas << " linhas, "
+              << numColunas << " colunas." << std::endl;
+    std::cout << "Encontrados " << idContador << " vértices." << std::endl;
 }
 
 void Grafo::lerMapaROS() {
@@ -56,17 +57,17 @@ void Grafo::lerMapaROS() {
     
     auto client = node->create_client<cg_interfaces::srv::GetMap>("/get_map");
     
-    cout << "Aguardando serviço /get_map" << endl;
+    std::cout << "Aguardando serviço /get_map" << std::endl;
     while (!client->wait_for_service(std::chrono::seconds(1))) {
         if (!rclcpp::ok()) {
-            cerr << "Interrompido enquanto aguardava o serviço." << endl;
+            std::cerr << "Interrompido enquanto aguardava o serviço." << std::endl;
             exit(1);
         }
-        cout << "Serviço não disponível, aguardando" << endl;
+        std::cout << "Serviço não disponível, aguardando" << std::endl;
     }
     
     auto request = std::make_shared<cg_interfaces::srv::GetMap::Request>();
-    cout << "Chamando serviço /get_map..." << endl;
+    std::cout << "Chamando serviço /get_map..." << std::endl;
     auto future = client->async_send_request(request);
     
     if (rclcpp::spin_until_future_complete(node, future) == 
@@ -74,29 +75,31 @@ void Grafo::lerMapaROS() {
         
         auto response = future.get();
         if (response->occupancy_grid_shape.size() != 2) {
-            cerr << "Shape inválido do mapa!" << endl;
+            std::cerr << "Shape inválido do mapa!" << std::endl;
             exit(1);
         }
         
         numLinhas = response->occupancy_grid_shape[0];
         numColunas = response->occupancy_grid_shape[1];
         
-        cout << "Mapa recebido: " << numLinhas << " linhas, " 
-             << numColunas << " colunas." << endl;
+        std::cout << "Mapa recebido: " << numLinhas << " linhas, " 
+                  << numColunas << " colunas." << std::endl;
         
         int idx = 0;
         for (int r = 0; r < numLinhas; r++) {
-            vector<char> linhaGrid;
+            std::vector<char> linhaGrid;
             for (int c = 0; c < numColunas; c++) {
                 char valor = response->occupancy_grid_flattened[idx][0];
                 linhaGrid.push_back(valor);
                 
                 if (valor != 'b') {
                     coordToId[{r, c}] = idContador;
+                    idToCoord[idContador] = {r, c};  // Adiciona mapa reverso
                     idContador++;
-                    if(valor == 'r')
+                    
+                    if (valor == 'r')
                         coorRobo = {r, c};
-                    if(valor == 't')
+                    if (valor == 't')
                         coorAlvo = {r, c};
                 }
                 idx++;
@@ -104,16 +107,16 @@ void Grafo::lerMapaROS() {
             mapa.push_back(linhaGrid);
         }
         
-        cout << "Encontrados " << idContador << " vértices." << endl;
+        std::cout << "Encontrados " << idContador << " vértices." << std::endl;
         
     } else {
-        cerr << "Falha ao chamar o serviço /get_map" << endl;
+        std::cerr << "Falha ao chamar o serviço /get_map" << std::endl;
         exit(1);
     }
 }
 
 void Grafo::construirArestas() {
-    cout << "Construindo arestas..." << endl;
+    std::cout << "Construindo arestas..." << std::endl;
 
     listaAdj.resize(idContador);
 
@@ -141,14 +144,15 @@ void Grafo::construirArestas() {
         }
     }
 
-    cout << "Arestas construídas com sucesso." << endl;
+    std::cout << "Arestas construídas com sucesso." << std::endl;
 }
 
 void Grafo::imprimirGrafo() {
-    cout << "\nLista de listaAdjacência:\n";
-    for (int id = 0; id < listaAdj.size(); id++) {
-        cout << id << " -> ";
-        for (int viz : listaAdj[id]) cout << viz << " ";
-        cout << endl;
+    std::cout << "\nLista de adjacência:\n";
+    for (size_t id = 0; id < listaAdj.size(); id++) {
+        std::cout << id << " -> ";
+        for (int viz : listaAdj[id]) 
+            std::cout << viz << " ";
+        std::cout << std::endl;
     }
 }

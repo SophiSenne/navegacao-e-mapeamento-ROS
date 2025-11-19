@@ -10,19 +10,9 @@ find_package(rclcpp REQUIRED)
 find_package(cg_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_executable(talker src/talker.cpp)
-target_include_directories(talker PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_compile_features(talker PUBLIC c_std_99 cxx_std_17)
-ament_target_dependencies(talker
-  "rclcpp"
-  "std_msgs"
-  "cg_interfaces"
-)
-
 add_executable(grafo_node 
   src/main.cpp
+  src/ControladorRobo.cpp
   src/Algoritmo.cpp
   src/Grafo.cpp
 )
@@ -37,7 +27,6 @@ ament_target_dependencies(grafo_node
 )
 
 install(TARGETS 
-  talker
   grafo_node
   DESTINATION lib/${PROJECT_NAME})
 
