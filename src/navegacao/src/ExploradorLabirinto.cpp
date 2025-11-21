@@ -6,10 +6,6 @@
 #include <climits>
 #include <stack>
 
-// Adicione este método privado no header (.h):
-// std::stack<PosicaoRobo> pilhaCaminho;  // Pilha para backtracking
-// Adicione na classe como membro privado
-
 ExploradorLabirinto::ExploradorLabirinto() 
     : Node("explorador_labirinto"),
       posicaoAtual{0, 0},
@@ -31,47 +27,36 @@ ExploradorLabirinto::ExploradorLabirinto()
     clienteReset = this->create_client<cg_interfaces::srv::Reset>("/reset");
     
     std::cout << "\n╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║   EXPLORADOR COM BACKTRACKING INICIADO            ║" << std::endl;
+    std::cout << "║                 EXPLORADOR INICIADO                ║" << std::endl;
     std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
 }
 
-void ExploradorLabirinto::executarExploracao() {
-    std::cout << "╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║     FASE 1: EXPLORANDO COM BACKTRACKING           ║" << std::endl;
-    std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
-    
-    std::cout << "⏳ Aguardando serviços..." << std::flush;
+void ExploradorLabirinto::executarExploracao() {  
+    std::cout << "Aguardando serviços." << std::flush;
     if (!clienteMovimento->wait_for_service(std::chrono::seconds(5))) {
-        std::cout << " ❌ ERRO\n";
+        std::cout << "ERRO\n";
         return;
     }
-    std::cout << " ✅ OK\n" << std::endl;
     
     explorarLabirinto();
     
     if (!alvoEncontrado) {
-        std::cout << "\n❌ ERRO: Alvo não encontrado durante exploração!\n" << std::endl;
+        std::cout << "\nAlvo não encontrado durante exploração!\n" << std::endl;
         return;
     }
-    
-    std::cout << "\n╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║       FASE 2: CALCULANDO MELHOR ROTA              ║" << std::endl;
-    std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
-    
+      
     std::vector<PosicaoRobo> rotaOtimizada = calcularMelhorRota();
     
     if (rotaOtimizada.empty()) {
-        std::cout << "❌ ERRO: Não foi possível calcular rota!\n" << std::endl;
+        std::cout << "Não foi possível calcular rota\n" << std::endl;
         return;
     }
     
-    std::cout << "✅ Rota otimizada encontrada!\n" << std::endl;
     std::cout << "┌────────────────────────────────────────────────────┐" << std::endl;
-    std::cout << "│  COMPARAÇÃO DE ROTAS                               │" << std::endl;
-    std::cout << "├────────────────────────────────────────────────────┤" << std::endl;
+
     std::cout << "│  Exploração inicial:  " << movimentosExploracao << " movimentos" 
               << std::string(24 - std::to_string(movimentosExploracao).length(), ' ') << "│" << std::endl;
-    std::cout << "│  Rota otimizada:      " << (rotaOtimizada.size() - 1) << " movimentos"
+    std::cout << "│  Rota encontrada:      " << (rotaOtimizada.size() - 1) << " movimentos"
               << std::string(24 - std::to_string(rotaOtimizada.size() - 1).length(), ' ') << "│" << std::endl;
     
     int economia = movimentosExploracao - (rotaOtimizada.size() - 1);
@@ -80,11 +65,7 @@ void ExploradorLabirinto::executarExploracao() {
               << static_cast<int>(percentual) << "%)"
               << std::string(20 - std::to_string(economia).length() - std::to_string(static_cast<int>(percentual)).length(), ' ') << "│" << std::endl;
     std::cout << "└────────────────────────────────────────────────────┘\n" << std::endl;
-    
-    std::cout << "╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║    FASE 3: EXECUTANDO ROTA OTIMIZADA              ║" << std::endl;
-    std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
-    
+       
     resetarJogo();
     std::this_thread::sleep_for(std::chrono::seconds(2));
     executarRotaOtimizada(rotaOtimizada);
@@ -93,28 +74,26 @@ void ExploradorLabirinto::executarExploracao() {
 }
 
 void ExploradorLabirinto::explorarLabirinto() {
-    rclcpp::Rate rate(10);
-    
-    std::cout << "📡 Aguardando primeira leitura dos sensores..." << std::flush;
-    
+    rclcpp::Rate rate(30);
+      
     while (rclcpp::ok() && !sensoresAtualizados) {
         rclcpp::spin_some(this->get_node_base_interface());
         rate.sleep();
     }
-    std::cout << " ✅\n" << std::endl;
     
     celulasVisitadas.insert(posicaoAtual);
     
-    // 🔥 PILHA PARA BACKTRACKING
     std::stack<PosicaoRobo> pilhaCaminho;
     pilhaCaminho.push(posicaoAtual);
     
     int iteracoes = 0;
     const int MAX_ITERACOES = 10000;
     
-    std::cout << "🤖 Iniciando exploração com backtracking...\n" << std::endl;
+    std::cout << "Iniciando exploração\n" << std::endl;
+
+    bool noAlvo = !(alvoEncontrado && posicaoAtual == posicaoAlvo);
     
-    while (rclcpp::ok() && !alvoEncontrado && iteracoes < MAX_ITERACOES) {
+    while (rclcpp::ok() && noAlvo && iteracoes < MAX_ITERACOES) {
         sensoresAtualizados = false;
         
         int tentativas = 0;
@@ -133,7 +112,6 @@ void ExploradorLabirinto::explorarLabirinto() {
             atualizarMapa(ultimosSensores);
         }
         
-        // 🔥 DECISÃO COM BACKTRACKING
         std::string proximaDirecao = decidirProximoMovimentoComBacktracking(pilhaCaminho);
         
         if (proximaDirecao.empty()) {
@@ -146,36 +124,23 @@ void ExploradorLabirinto::explorarLabirinto() {
         int proxX = posicaoAtual.x + offset.first;
         int proxY = posicaoAtual.y + offset.second;
         
-        // Verificar se é movimento de backtrack (voltar) ou exploração (avançar)
         bool ehBacktrack = false;
         if (pilhaCaminho.size() > 1) {
             std::stack<PosicaoRobo> copia = pilhaCaminho;
-            copia.pop(); // Remove topo atual
+            copia.pop();
             PosicaoRobo anterior = copia.top();
             if (proxX == anterior.x && proxY == anterior.y) {
                 ehBacktrack = true;
             }
         }
         
-        if (ehBacktrack) {
-            std::cout << "🔙 Backtrack " << (iteracoes + 1) << ": " << proximaDirecao 
-                      << " → (" << proxX << ", " << proxY << ")" << std::flush;
-        } else {
-            std::cout << "🔸 Movimento " << (iteracoes + 1) << ": " << proximaDirecao 
-                      << " → (" << proxX << ", " << proxY << ")" << std::flush;
-        }
-        
         if (moverRobo(proximaDirecao)) {
-            std::cout << " ✅" << std::endl;
-            
-            // 🔥 GERENCIAR PILHA
             if (ehBacktrack) {
-                pilhaCaminho.pop(); // Remove posição anterior
+                pilhaCaminho.pop();
             } else {
-                pilhaCaminho.push(posicaoAtual); // Adiciona nova posição
+                pilhaCaminho.push(posicaoAtual);
             }
         } else {
-            std::cout << " ❌" << std::endl;
             break;
         }
         
@@ -188,7 +153,7 @@ void ExploradorLabirinto::explorarLabirinto() {
     }
     
     movimentosExploracao = totalMovimentos;
-    std::cout << "\n✅ Exploração concluída: " << movimentosExploracao << " movimentos\n" << std::endl;
+    std::cout << "\nExploração concluída: " << movimentosExploracao << " movimentos\n" << std::endl;
     
     if (alvoEncontrado) {
         std::cout << "🎯 Alvo encontrado em: (" << posicaoAlvo.x << ", " << posicaoAlvo.y << ")\n" << std::endl;
@@ -197,9 +162,7 @@ void ExploradorLabirinto::explorarLabirinto() {
     mostrarMapa();
 }
 
-// 🔥 NOVA FUNÇÃO: Decisão com backtracking
 std::string ExploradorLabirinto::decidirProximoMovimentoComBacktracking(std::stack<PosicaoRobo>& pilhaCaminho) {
-    // PASSO 1: Tentar células adjacentes não visitadas (exploração)
     std::vector<std::pair<int, int>> direcoes = {
         {0, 1},   // up
         {1, 0},   // right
@@ -208,10 +171,26 @@ std::string ExploradorLabirinto::decidirProximoMovimentoComBacktracking(std::sta
     };
     
     if (ultimosSensores) {
-        std::cout << "   [Sensores: up=" << ultimosSensores->up 
+        std::cout << "\r   Sensores: up=" << ultimosSensores->up 
                   << " down=" << ultimosSensores->down
                   << " left=" << ultimosSensores->left 
-                  << " right=" << ultimosSensores->right << "]" << std::endl;
+                  << " right=" << ultimosSensores->right << std::flush;
+    }
+
+    if (alvoEncontrado) {
+        for (const auto& dir : direcoes) {
+            int nx = posicaoAtual.x + dir.first;
+            int ny = posicaoAtual.y + dir.second;
+            
+            if (nx == posicaoAlvo.x && ny == posicaoAlvo.y) {
+                TipoCelula tipoCelula = getTipoCelula(nx, ny);
+                if (tipoCelula == ALVO) {
+                    if (mapaDir.find(dir) != mapaDir.end()) {
+                        return mapaDir[dir];
+                    }
+                }
+            }
+        }
     }
     
     for (const auto& dir : direcoes) {
@@ -225,25 +204,16 @@ std::string ExploradorLabirinto::decidirProximoMovimentoComBacktracking(std::sta
             (tipoCelula == LIVRE || tipoCelula == ALVO)) {
             
             if (mapaDir.find(dir) != mapaDir.end()) {
-                std::cout << "   → Explorando: " << mapaDir[dir] << " (célula: ";
-                if (tipoCelula == LIVRE) std::cout << "livre";
-                else if (tipoCelula == ALVO) std::cout << "alvo";
-                std::cout << ")" << std::endl;
                 return mapaDir[dir];
             }
         }
     }
     
-    // PASSO 2: Não há células novas adjacentes - FAZER BACKTRACK
     if (pilhaCaminho.size() > 1) {
         std::stack<PosicaoRobo> copia = pilhaCaminho;
-        copia.pop(); // Remove posição atual
+        copia.pop();
         PosicaoRobo posicaoAnterior = copia.top();
         
-        std::cout << "   → Fazendo backtrack para (" 
-                  << posicaoAnterior.x << ", " << posicaoAnterior.y << ")" << std::endl;
-        
-        // Calcular direção para voltar
         std::pair<int, int> diff = {
             posicaoAnterior.x - posicaoAtual.x,
             posicaoAnterior.y - posicaoAtual.y
@@ -254,8 +224,7 @@ std::string ExploradorLabirinto::decidirProximoMovimentoComBacktracking(std::sta
         }
     }
     
-    // PASSO 3: Pilha vazia - exploração completa sem encontrar alvo
-    std::cout << "   ⚠️  Nenhuma célula para explorar e pilha vazia!" << std::endl;
+    std::cout << "⚠️ Nenhuma célula para explorar e pilha vazia!" << std::endl;
     return "";
 }
 
@@ -332,11 +301,10 @@ void ExploradorLabirinto::atualizarMapa(const cg_interfaces::msg::RobotSensors::
     
     mapaExplorado[{posicaoAtual.x, posicaoAtual.y}] = LIVRE;
     
-    std::cout << "   [Mapa atualizado: " << celulasLivres << " livres, " 
-              << paredes << " bloqueadas]" << std::endl;
+    // std::cout << "   [Mapa atualizado: " << celulasLivres << " livres, " 
+    //           << paredes << " bloqueadas]" << std::endl;
 }
 
-// Manter a função original para compatibilidade
 std::string ExploradorLabirinto::decidirProximoMovimento() {
     std::stack<PosicaoRobo> pilhaTemp;
     pilhaTemp.push(posicaoAtual);
@@ -440,48 +408,42 @@ std::vector<PosicaoRobo> ExploradorLabirinto::buscaEmLargura(PosicaoRobo inicio,
 
 void ExploradorLabirinto::resetarJogo() {
     if (!clienteReset->wait_for_service(std::chrono::seconds(5))) {
-        std::cout << "❌ Serviço /reset não disponível!" << std::endl;
+        std::cout << "Serviço /reset não disponível" << std::endl;
         return;
     }
     
     auto request = std::make_shared<cg_interfaces::srv::Reset::Request>();
     request->is_random = false;
-    
-    std::cout << "🔄 Resetando jogo..." << std::flush;
-    
+      
     auto futuro = clienteReset->async_send_request(request);
     
     if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), futuro, std::chrono::seconds(5))
         == rclcpp::FutureReturnCode::SUCCESS) {
-        std::cout << " ✅\n" << std::endl;
         posicaoAtual = posicaoInicial;
         totalMovimentos = 0;
-    } else {
-        std::cout << " ❌\n" << std::endl;
-    }
+    } 
 }
 
 void ExploradorLabirinto::executarRotaOtimizada(const std::vector<PosicaoRobo>& rota) {
-    std::cout << "🎯 Executando rota otimizada (" << (rota.size() - 1) << " passos)...\n" << std::endl;
+    std::cout << "Executando rota (" << (rota.size() - 1) << " passos)...\n" << std::endl;
     
     for (size_t i = 0; i < rota.size() - 1; i++) {
         std::string direcao = calcularDirecao(rota[i], rota[i + 1]);
         
-        std::cout << "🔸 Passo " << (i + 1) << "/" << (rota.size() - 1) 
-                  << ": " << direcao << " → (" << rota[i+1].x << ", " << rota[i+1].y << ")" << std::flush;
+        std::cout << "\rProgresso: " << (i + 1) << "/" << (rota.size() - 1) 
+                      << std::flush;
         
         if (moverRobo(direcao)) {
-            std::cout << " ✅" << std::endl;
             movimentosRotaOtimizada++;
         } else {
-            std::cout << " ❌ FALHA!" << std::endl;
+            std::cout << " FALHA" << std::endl;
             break;
         }
         
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
     }
     
-    std::cout << "\n🏁 Rota otimizada concluída!\n" << std::endl;
+    std::cout << "\n🏁 Rota concluída!\n" << std::endl;
 }
 
 std::string ExploradorLabirinto::calcularDirecao(const PosicaoRobo& atual, const PosicaoRobo& proximo) {
@@ -548,8 +510,6 @@ void ExploradorLabirinto::mostrarMapa() {
 
 void ExploradorLabirinto::mostrarEstatisticas() {
     std::cout << "\n╔════════════════════════════════════════════════════╗" << std::endl;
-    std::cout << "║              ESTATÍSTICAS FINAIS                  ║" << std::endl;
-    std::cout << "╠════════════════════════════════════════════════════╣" << std::endl;
     
     std::cout << "║  Células exploradas:        " << celulasVisitadas.size();
     std::cout << std::string(23 - std::to_string(celulasVisitadas.size()).length(), ' ') << "║" << std::endl;
@@ -559,15 +519,6 @@ void ExploradorLabirinto::mostrarEstatisticas() {
     
     std::cout << "║  Movimentos rota ótima:     " << movimentosRotaOtimizada;
     std::cout << std::string(23 - std::to_string(movimentosRotaOtimizada).length(), ' ') << "║" << std::endl;
-    
-    if (movimentosExploracao > 0) {
-        int economia = movimentosExploracao - movimentosRotaOtimizada;
-        float percentual = 100.0 * economia / movimentosExploracao;
-        std::cout << "║  Economia:                  " << economia << " movimentos (" 
-                  << static_cast<int>(percentual) << "%)";
-        int espacos = 52 - 30 - std::to_string(economia).length() - std::to_string(static_cast<int>(percentual)).length() - 13;
-        std::cout << std::string(espacos, ' ') << "║" << std::endl;
-    }
     
     std::cout << "╚════════════════════════════════════════════════════╝\n" << std::endl;
 }

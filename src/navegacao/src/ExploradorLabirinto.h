@@ -40,7 +40,6 @@ public:
     void executarExploracao();
 
 private:
-    // === Fase 1: Exploração ===
     void explorarLabirinto();
     void processarSensores(const cg_interfaces::msg::RobotSensors::SharedPtr msg);
     void atualizarMapa(const cg_interfaces::msg::RobotSensors::SharedPtr sensores);
@@ -49,49 +48,40 @@ private:
 
     std::string decidirProximoMovimentoComBacktracking(std::stack<PosicaoRobo>& pilhaCaminho);
     
-    // === Fase 2: Cálculo da melhor rota ===
     std::vector<PosicaoRobo> calcularMelhorRota();
     std::vector<PosicaoRobo> buscaEmLargura(PosicaoRobo inicio, PosicaoRobo alvo);
     
-    // === Fase 3: Execução otimizada ===
     void resetarJogo();
     void executarRotaOtimizada(const std::vector<PosicaoRobo>& rota);
     std::string calcularDirecao(const PosicaoRobo& atual, const PosicaoRobo& proximo);
-    
-    // Utilitários
+
     std::vector<PosicaoRobo> getVizinhosLivres(const PosicaoRobo& pos);
     TipoCelula getTipoCelula(int x, int y);
     void mostrarEstatisticas();
     void mostrarMapa();
     std::pair<int, int> getOffset(const std::string& direcao);
-    
-    // ROS2
+
     rclcpp::Subscription<cg_interfaces::msg::RobotSensors>::SharedPtr subSensores;
     rclcpp::Client<cg_interfaces::srv::MoveCmd>::SharedPtr clienteMovimento;
     rclcpp::Client<cg_interfaces::srv::Reset>::SharedPtr clienteReset;
-    
-    // Estado do robô
+
     PosicaoRobo posicaoAtual;
     PosicaoRobo posicaoInicial;
     PosicaoRobo posicaoAlvo;
-    
-    // Mapa descoberto
+
     std::map<std::pair<int, int>, TipoCelula> mapaExplorado;
     std::set<PosicaoRobo> celulasVisitadas;
-    std::queue<PosicaoRobo> fronteira; // Células a explorar
-    
-    // Controle de estado
+    std::queue<PosicaoRobo> fronteira;
+
     bool alvoEncontrado;
     bool movimentoEmAndamento;
     bool sensoresAtualizados;
     cg_interfaces::msg::RobotSensors::SharedPtr ultimosSensores;
     
-    // Estatísticas
     int totalMovimentos;
     int movimentosExploracao;
     int movimentosRotaOtimizada;
-    
-    // Mapeamento de direções
+
     std::map<std::pair<int, int>, std::string> mapaDir = {
         {{0, 1}, "up"},
         {{0, -1}, "down"},
@@ -104,4 +94,4 @@ private:
     };
 };
 
-#endif // EXPLORADOR_LABIRINTO_H
+#endif

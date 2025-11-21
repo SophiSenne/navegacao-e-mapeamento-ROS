@@ -94,7 +94,7 @@ void Grafo::lerMapaROS() {
                 
                 if (valor != 'b') {
                     coordToId[{r, c}] = idContador;
-                    idToCoord[idContador] = {r, c};  // Adiciona mapa reverso
+                    idToCoord[idContador] = {r, c}; 
                     idContador++;
                     
                     if (valor == 'r')
@@ -116,7 +116,7 @@ void Grafo::lerMapaROS() {
 }
 
 void Grafo::construirArestas() {
-    std::cout << "Construindo arestas..." << std::endl;
+    std::cout << "Construindo arestas" << std::endl;
 
     listaAdj.resize(idContador);
 
@@ -144,7 +144,7 @@ void Grafo::construirArestas() {
         }
     }
 
-    std::cout << "Arestas construídas com sucesso." << std::endl;
+    std::cout << "Arestas construídas com sucesso" << std::endl;
 }
 
 void Grafo::imprimirGrafo() {

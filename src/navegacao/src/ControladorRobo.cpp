@@ -8,7 +8,7 @@ ControladorRobo::ControladorRobo()
       movimentoEmAndamento(false) {
     clienteMovimento = this->create_client<cg_interfaces::srv::MoveCmd>("/move_command");
     
-    std::cout << "[ControladorRobo] Nó criado, aguardando serviço /move_command..." << std::endl;
+    std::cout << "Aguardando serviço /move_command" << std::endl;
 }
 
 void ControladorRobo::setCaminhoCoordenadas(const std::vector<std::pair<int, int>>& caminho) {
@@ -21,20 +21,16 @@ void ControladorRobo::setCaminhoIDs(const std::vector<int>& caminho, Grafo* graf
     caminhoIDs = caminho;
     caminhoCoordenadas.clear();
     
-    std::cout << "[Debug] Convertendo " << caminho.size() << " IDs para coordenadas..." << std::endl;
     
     for (int id : caminho) {
         if (grafo->idToCoord.find(id) != grafo->idToCoord.end()) {
             auto coord = grafo->idToCoord[id];
             caminhoCoordenadas.push_back(coord);
-            std::cout << "[Debug] ID " << id << " -> (" << coord.first << ", " << coord.second << ")" << std::endl;
         } else {
             std::cout << "[ERRO] ID " << id << " não encontrado no mapa!" << std::endl;
         }
     }
-    
-    std::cout << "[Debug] Total de coordenadas no caminho: " << caminhoCoordenadas.size() << std::endl;
-    
+     
     indiceAtual = 0;
     movimentoEmAndamento = false;
 }
@@ -58,9 +54,9 @@ bool ControladorRobo::moverProximoPasso() {
         proximo.second - atual.second
     };
     
-    std::cout << "[Debug] Posição atual: (" << atual.first << ", " << atual.second << ")" << std::endl;
-    std::cout << "[Debug] Próxima posição: (" << proximo.first << ", " << proximo.second << ")" << std::endl;
-    std::cout << "[Debug] Diferença: (" << diferenca.first << ", " << diferenca.second << ")" << std::endl;
+    // std::cout << "[Debug] Posição atual: (" << atual.first << ", " << atual.second << ")" << std::endl;
+    // std::cout << "[Debug] Próxima posição: (" << proximo.first << ", " << proximo.second << ")" << std::endl;
+    // std::cout << "[Debug] Diferença: (" << diferenca.first << ", " << diferenca.second << ")" << std::endl;
     
     if (direcoes.find(diferenca) == direcoes.end()) {
         std::cout << "[ERRO] Direção inválida: (" << diferenca.first << ", " << diferenca.second << ")" << std::endl;
@@ -68,7 +64,7 @@ bool ControladorRobo::moverProximoPasso() {
     }
     
     std::string direcao = direcoes[diferenca];
-    std::cout << "[Debug] Direção calculada: " << direcao << std::endl;
+    // std::cout << "[Debug] Direção calculada: " << direcao << std::endl;
     
     executarMovimento(direcao);
     return true;
@@ -80,7 +76,7 @@ void ControladorRobo::executarCaminhoCompleto() {
         return;
     }
     
-    std::cout << "Iniciando movimento pelo caminho completo..." << std::endl;
+    std::cout << "Iniciando movimento pelo caminho completo" << std::endl;
     std::cout << "Total de passos: " << caminhoCoordenadas.size() - 1 << std::endl;
     
     // Aguardar serviço estar disponível
@@ -89,7 +85,7 @@ void ControladorRobo::executarCaminhoCompleto() {
         return;
     }
     
-    std::cout << "[INFO] Serviço /move_command disponível. Iniciando movimento..." << std::endl;
+    std::cout << "Iniciando movimento" << std::endl;
     moverProximoPasso();
 }
 
@@ -117,9 +113,7 @@ void ControladorRobo::executarMovimento(const std::string& direcao) {
     
     auto request = std::make_shared<cg_interfaces::srv::MoveCmd::Request>();
     request->direction = direcao;
-    
-    std::cout << "[INFO] Enviando comando de movimento: " << direcao << std::endl;
-    
+      
     movimentoEmAndamento = true;
     
     auto futuro = clienteMovimento->async_send_request(request,
@@ -133,15 +127,16 @@ void ControladorRobo::tratarRespostaMovimento(rclcpp::Client<cg_interfaces::srv:
         auto resposta = future.get();
         movimentoEmAndamento = false;
         
-        std::cout << "[Debug] Resposta recebida - success: " << (resposta->success ? "true" : "false") << std::endl;
+        // std::cout << "[Debug] Resposta recebida - success: " << (resposta->success ? "true" : "false") << std::endl;
         
         if (resposta->success) {
-            std::cout << "[SUCCESS] Movimento realizado com sucesso! ";
+            std::cout << "Movimento realizado com sucesso! ";
             indiceAtual++;
             
             std::pair<int, int> posAtual = getPosicaoAtual();
-            std::cout << "Posição atual: (" << posAtual.first << ", " << posAtual.second << ")" << std::endl;
-            std::cout << "Progresso: " << indiceAtual << "/" << (caminhoCoordenadas.size() - 1) << std::endl;
+            std::cout << "\rCoordenada atual: (" << posAtual.first << ", " << posAtual.second 
+                      << ") | Progresso: " << indiceAtual << "/" << (caminhoCoordenadas.size() - 1) 
+                      << std::flush;
             
             if (!chegouAoAlvo()) {
                 rclcpp::sleep_for(std::chrono::milliseconds(500));
@@ -152,20 +147,18 @@ void ControladorRobo::tratarRespostaMovimento(rclcpp::Client<cg_interfaces::srv:
         } else {
             std::cout << "[FALHA] Movimento falhou! ";
             
-            // Debug: mostrar posição que tentou mover
-            if (indiceAtual < caminhoCoordenadas.size() - 1) {
-                auto atual = caminhoCoordenadas[indiceAtual];
-                auto proximo = caminhoCoordenadas[indiceAtual + 1];
-                std::cout << "Tentativa: (" << atual.first << ", " << atual.second << ") -> ("
-                          << proximo.first << ", " << proximo.second << ")" << std::endl;
-            }
+            // if (indiceAtual < caminhoCoordenadas.size() - 1) {
+            //     auto atual = caminhoCoordenadas[indiceAtual];
+            //     auto proximo = caminhoCoordenadas[indiceAtual + 1];
+            //     std::cout << "Tentativa: (" << atual.first << ", " << atual.second << ") -> ("
+            //               << proximo.first << ", " << proximo.second << ")" << std::endl;
+            // }
             
-            // Limitar tentativas para evitar loop infinito
             static int tentativasFalhadas = 0;
             tentativasFalhadas++;
             
             if (tentativasFalhadas > 5) {
-                std::cout << "\n[ERRO CRÍTICO] Muitas falhas consecutivas. Abortando..." << std::endl;
+                std::cout << "\n[ERRO] Muitas falhas consecutivas. Abortando" << std::endl;
                 tentativasFalhadas = 0;
                 return;
             }
