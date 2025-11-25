@@ -73,3 +73,5 @@ ros2 run navegacao grafo_node
 ```
 
 ## 📺 Vídeo Demonstrativo
+
+[Link](https://drive.google.com/file/d/17oOg_b2TlWxuKg0cROLFN5qsK4VAfUQ5/view?usp=sharing).
